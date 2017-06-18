@@ -1,39 +1,9 @@
 # Hack The Web
 
-## Deploying the Juice shop App
+This page is part of Wilmington Web Devs OWASP Top 10 Talks.
 
-### Locally using Docker
+Hack-the-App is a 2 hour workshop where we aim to try and apply some of the techniques we learned at the previous OWASP Top 10 talk.
 
-```
-docker run -d -p 3000:3000 bkimminich/juice-shop
-```
+For the workshop we'll be deploying the OWASP Juice Shop App which guarantees us that the OWASP Top 10 vulnerabilites are present and ready to be exploited.
 
-Then navigate to http://localhost:3000
-
-Or:
-
-```
-sudo docker run -d -p 80:3000 bkimminich/juice-shop
-```
-
-Then navigate to http://localhost
-
-### To AWS Instance (which also uses Docker)
-
-Install ansible & boto
-
-```
-# Activate vituralenv
-# then run
-pip install -r requirements.txt
-```
-
-Run Playbook:
-```
-# export AWS credentials first
-# then run
-ansible-playbook \
-    -e 'deploy_key_name=TomMGDeploy'
-    owasp-top-10-hack-the-web.yml
-
-```
+For more information on deploying the app yourself and a list of tools that may help you run pentests against it head over to [the wiki](/WilmingtonWebDev/owasp-top-10-hack-the-app/wiki)
