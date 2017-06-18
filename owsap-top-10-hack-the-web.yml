@@ -1,0 +1,136 @@
+---
+- name: Deploy the OWSAP Juice Shop Project to AWS
+  hosts: localhost
+  connection: local
+
+  vars:
+    # Amazon Linux AMI us-east-1 (N. Virginia)
+    name: "OWASP_Juice_Shop"
+    ami: ami-c58c1dd3
+    aws_region: us-east-1
+
+  tasks:
+
+  # Create the OWASP Juice Shop Webserver
+  - block:
+
+    - name:               Assert all needed variables have been set
+      assert:
+        that:
+          - name is defined
+          - ami is defined
+          - aws_region is defined
+          - deploy_key_name is defined
+
+    - name:               Create Main Security Group
+      ec2_group:
+        name:             "{{ name }}_SG"
+        description:      "{{ name }} Security Group"
+        region:           "{{ aws_region }}"
+        rules:
+          - proto:        "tcp"
+            from_port:    "22"
+            to_port:      "22"
+            cidr_ip:      "0.0.0.0/0"
+          - proto:        "tcp"
+            from_port:    "80"
+            to_port:      "80"
+            cidr_ip:      "0.0.0.0/0"
+          - proto:        "tcp"
+            from_port:    "443"
+            to_port:      "443"
+            cidr_ip:      "0.0.0.0/0"
+        rules_egress:
+          - proto: tcp
+            from_port: 0
+            to_port: 65535
+            cidr_ip: 0.0.0.0/0
+        state: present
+      register: my_sg
+
+    - debug: var=my_sg
+
+    - name:               Create an EC2 instance
+      ec2:
+        key_name:         "{{ deploy_key_name }}"
+        instance_type:    t2.micro
+        region:           "{{ aws_region }}"
+        image:            "{{ ami }}"
+        wait:             yes
+        group:             "{{ name }}_SG"
+        instance_tags:
+          Name:           "{{ name }}"
+        exact_count:      1
+        count_tag:
+          Name:           "{{ name }}"
+      register: js_instances
+
+    - debug: var=js_instance
+
+    - name:               Add instances to prosioning group
+      add_host:
+        name:             "{{ item.public_dns_name }}"
+        groups:           new_servers
+      with_items:         "{{ js_instances.tagged_instances }}"
+
+    when: teardown is not defined
+
+  # Teardown the running web server
+  - block:
+
+    - name:               Terminate the EC2 instance
+      ec2:
+        key_name:         "{{ deploy_key_name }}"
+        instance_type:    t2.micro
+        region:           "{{ aws_region }}"
+        image:            "{{ ami }}"
+        wait:             yes
+        group:             "{{ name }}_SG"
+        instance_tags:
+          Name:           "{{ name }}"
+        exact_count:      0
+        count_tag:
+          Name:           "{{ name }}"
+      register: js_instances
+
+    - name:               Destroy Main Security Group
+      ec2_group:
+        name:             "{{ name }}_SG"
+        description:      "{{ name }} Security Group"
+        region:           "{{ aws_region }}"
+        state: absent
+
+    when: teardown is not defined
+
+- name: Configuring instance
+  hosts: new_servers
+  user: ec2-user
+
+  tasks:
+    - name: Install docker-py
+      pip:
+        name: docker-py
+        state: present
+      become: yes
+
+    - name: Install Docker
+      package:
+        name: docker
+        state: present
+      become: yes
+
+    - name: Start Docker Service
+      service:
+        name: docker
+        state: started
+      become: yes
+
+    - name: Start Juice Shop
+      docker_container:
+        name: OWASP_Juice_Shop
+        image: bkimminich/juice-shop
+        state: started
+        published_ports:
+          - 80:3000
+        restart_policy: always
+      become: yes
