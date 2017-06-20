@@ -100,7 +100,7 @@
         region:           "{{ aws_region }}"
         state: absent
 
-    when: teardown is not defined
+    when: teardown is defined
 
 - name: Configuring instance
   hosts: new_servers
